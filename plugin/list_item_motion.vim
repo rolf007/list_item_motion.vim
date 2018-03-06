@@ -34,10 +34,10 @@ function! s:IsString()
 endfunction
 
 
-function! s:MoveOneForward(opt)
+function! s:MoveOneForward()
 	"move cursor to last char in current item
 	let brachet_state = ""
-	let opt = a:opt
+	let opt = "cW"
 	while(1)
 		let f = search('\((\|)\|\[\|]\|{\|}\|,\)', opt)
 		let opt = "W"
@@ -95,7 +95,7 @@ function! MoveForward(count1)
 	let c = a:count1
 	while (c)
 		let curpos = getcurpos()[1:]
-		let x = s:MoveOneForward("cW")
+		let x = s:MoveOneForward()
 		if x == ','
 			let c = c - 1
 			call search('\S', "W")
@@ -132,33 +132,93 @@ function! MoveBackward(count1)
 	return
 endfunction
 
-function! s:MoveForwardVisual(count1)
+function! MoveForwardVisual(count1)
 	execute("normal! gv")
 	let col0 = col(".")
 	let line0 = line(".")
 	let col1 = col("v")
 	let line1 = line("v")
-	"echom "[ " . col0 . ", " . line0 . "] "
-	"echom "[ " . col1 . ", " . line1 . "] "
 	if line0 < line1 || (line0 == line1 && col0 < col1)
 		"echom "reverse range"
 		execute("normal! o")
-	elseif line0 == line1 && col0 == col1
-		"echom "null-range"
-		call s:MoveOneBackward()
-		call search('.', "W")
+		call <SID>BeginVisual()
+		call s:MoveOneForward()
 		execute("normal! o")
-		call s:MoveOneForward("cW")
+		call s:MoveOneForward()
+		call search('.', "W")
+		call <SID>EndVisual()
 	else
 		"echom "normal range"
+		call <SID>BeginVisual()
+		call search('.', "W")
+		call s:MoveOneForward()
 		execute("normal! o")
 		call s:MoveOneBackward()
 		call search('.', "W")
 		execute("normal! o")
-		call s:MoveOneForward("W")
+		call <SID>EndVisual()
 	endif
 endfunction
 
+function! MoveBackwardVisual(count1)
+	execute("normal! gv")
+	let col0 = col(".")
+	let line0 = line(".")
+	let col1 = col("v")
+	let line1 = line("v")
+	if line0 < line1 || (line0 == line1 && col0 < col1)
+		"echom "reverse range"
+		execute("normal! o")
+		call <SID>BeginVisual()
+		call s:MoveOneForward()
+		execute("normal! o")
+		call search('.', "bW")
+		call s:MoveOneBackward()
+		call search('.', "W")
+		call <SID>EndVisual()
+	else
+		"echom "normal range"
+		call <SID>BeginVisual()
+		call s:MoveOneBackward()
+		execute("normal! o")
+		call s:MoveOneBackward()
+		call search('.', "W")
+		execute("normal! o")
+		call <SID>EndVisual()
+	endif
+endfunction
+
+function! s:BeginVisual()
+	"execute("normal! gv")
+	call search('.', "W")
+	let e = <SID>CharUnderCursor()
+	if e == ")" || e == "]" || e == "}"
+		execute("normal! o")
+		let b = <SID>CharUnderCursor()
+		if b == ","
+			call search('.', "W")
+		endif
+		execute("normal! o")
+	else
+		call search('.', "bW")
+	endif
+endfunction
+
+function! s:EndVisual()
+	"execute("normal! gv")
+	let e = <SID>CharUnderCursor()
+	if e == ")" || e == "]" || e == "}"
+		call search('.', "bW")
+		execute("normal! o")
+		call search('.', "bW")
+		let b = <SID>CharUnderCursor()
+		if b == ","
+		else
+			call search('.', "W")
+		endif
+		execute("normal! o")
+	endif
+endfunction
 
 function! s:Foo()
 	call Foo(1234, 1234 , ")", (34,35), hej)
@@ -179,7 +239,7 @@ function! Delete(count1)
 		while (c)
 			let curpos = getcurpos()[1:]
 			call search('.', "W")
-			let x = s:MoveOneForward("cW")
+			let x = s:MoveOneForward()
 			if x == ','
 				let c = c - 1
 			else
@@ -187,8 +247,6 @@ function! Delete(count1)
 				break
 			endif
 		endwhile
-
-
 	else
 		call cursor(curpos)
 	endif
@@ -202,6 +260,8 @@ nnoremap <silent> d<esc>z :<C-U>call Delete(v:count1)<CR>
 nnoremap <silent> d<esc>Z :<C-U>call DeleteBackwards(v:count1)<CR>
 nnoremap <silent> zp :<C-U>call PutAfter(v:count1)<CR>
 nnoremap <silent> zP :<C-U>call PutBefore(v:count1)<CR>
-vnoremap <silent> <esc>z :<C-U>call <SID>MoveForwardVisual(v:count1)<CR>
-vnoremap <silent> <esc>Z :<C-U>call <SID>MoveBackwardVisual(v:count1)<CR>
+vnoremap <silent> <esc>z :<C-U>call MoveForwardVisual(v:count1)<CR>
+vnoremap <silent> <esc>Z :<C-U>call MoveBackwardVisual(v:count1)<CR>
+"vnoremap <silent> <esc>x :<C-U>call <SID>BeginVisual()<CR>
+"vnoremap <silent> <esc>X :<C-U>call <SID>EndVisual()<CR>
 " use 'o' in visual mode to go to the other end of visually selection

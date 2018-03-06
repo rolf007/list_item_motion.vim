@@ -8,7 +8,7 @@ function! CreateScene(scene, mode)
 	if len(v:errors)
 		return
 	endif
-	execute("normal! ggdG")
+	execute("normal! \<esc>ggdG")
 	let @" = a:scene
 	execute("normal! p")
 	if a:mode == "visual"
@@ -21,9 +21,9 @@ function! CreateScene(scene, mode)
 	redraw
 endfunction
 
-function! Assert(exp, got, sfile, slnum)
+function! Assert(exp, got, msg, sfile, slnum)
 	if a:exp != a:got
-		let v:errors += [a:sfile . ' line ' . a:slnum . ': Expected ' . string(a:exp) . ' but got ' . string(a:got)]
+		let v:errors += [a:sfile . ' line ' . a:slnum . ': ' . a:msg . '. Expected ' . string(a:exp) . ' but got ' . string(a:got)]
 	endif
 endfunction
 
@@ -34,10 +34,10 @@ function! AssertScene(scene, mode, sfile, slnum)
 	let actual = [getpos("v"), getpos("."), mode(), getline(line('.'), line('$'))]
 	call CreateScene(a:scene, a:mode)
 	let expected = [getpos("v"), getpos("."), mode(), getline(line('.'), line('$'))]
-	call Assert(expected[0], actual[0], a:sfile, a:slnum)
-	call Assert(expected[1], actual[1], a:sfile, a:slnum)
-	call Assert(expected[2], actual[2], a:sfile, a:slnum)
-	call Assert(expected[3], actual[3], a:sfile, a:slnum)
+	call Assert(expected[0], actual[0], "\"v\"", a:sfile, a:slnum)
+	call Assert(expected[1], actual[1], "\".\"", a:sfile, a:slnum)
+	call Assert(expected[2], actual[2], "\"mode\"", a:sfile, a:slnum)
+	call Assert(expected[3], actual[3], "\"text\"", a:sfile, a:slnum)
 endfunction
 
 "embedded paranthesis'
@@ -163,13 +163,36 @@ call AssertScene("aa,<b>b,cc,dd", "normal", $X)
 call MoveBackward(2)
 call AssertScene("aa,<b>b,cc,dd", "normal", $X)
 
-
 call CreateScene("(aaa,b<b>b)", "normal")
 call MoveForward(1)
 call AssertScene("(aaa,b<b>b)", "normal", $X)
 call CreateScene("(a<a>a,bbb)", "normal")
 call MoveBackward(1)
 call AssertScene("(a<a>a,bbb)", "normal", $X)
+
+call CreateScene("(aaa, bbb, c<c>c, ddd, eee)", "visual")
+call MoveForwardVisual(1)
+call AssertScene("(aaa, bbb,< ccc,> ddd, eee)", "visual", $X)
+call MoveForwardVisual(1)
+call AssertScene("(aaa, bbb,< ccc, ddd,> eee)", "visual", $X)
+call MoveForwardVisual(1)
+call AssertScene("(aaa, bbb<, ccc, ddd, eee>)", "visual", $X)
+call MoveForwardVisual(1)
+call AssertScene("(aaa, bbb<, ccc, ddd, eee>)", "visual", $X)
+call MoveBackwardVisual(1)
+call AssertScene("(aaa, bbb,< ccc, ddd,> eee)", "visual", $X)
+call MoveBackwardVisual(1)
+call AssertScene("(aaa, bbb,< ccc,> ddd, eee)", "visual", $X)
+
+call CreateScene("(,,<,>,,)", "visual")
+call MoveForwardVisual(1)
+call AssertScene("(,,<,,>,)", "visual", $X)
+call MoveForwardVisual(1)
+call AssertScene("(,,<,,,>)", "visual", $X)
+call MoveForwardVisual(1)
+call AssertScene("(,,<,,,>)", "visual", $X)
+
+call CreateScene("(aaa, bbb, c<c>c, ddd, eee)\n(,,,,,,,,,,,,,,,,)", "visual")
 
 EOL
 
